@@ -107,3 +107,13 @@ Esto genera:
 class_weight se calcula automáticamente para balancear el dataset.
 
 Para reproducibilidad se fijan semillas y (opcional) determinismo en GPU.
+
+### 🚀 Cómo usarlo
+
+- Si es primera vez → ejecuta:
+
+`python main.py`
+
+- Si ya tienes los modelos entrenados y solo quieres evaluar o probar con nuevas imágenes:
+
+`python evaluate.py`

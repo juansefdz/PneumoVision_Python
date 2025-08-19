@@ -1,4 +1,4 @@
-# scan_and_resize.py
+
 """
 Escaneo de calidad (oscura/blanca/varianza/tamaño) y reescalado con letterbox
 de las imágenes del dataset original hacia ./chest_xray_resized (224x224).

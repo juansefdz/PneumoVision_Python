@@ -1,4 +1,4 @@
-# main.py
+
 """
 Script maestro: redimensiona (si hace falta), entrena CNN y EfficientNet,
 y evalúa ambos modelos. Puedes comentar pasos según tu necesidad.

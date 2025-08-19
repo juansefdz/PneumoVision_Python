@@ -1,4 +1,4 @@
-# data_pipeline.py
+
 import os
 import tensorflow as tf
 from tensorflow import keras
@@ -40,21 +40,14 @@ aug = keras.Sequential([
 ], name="xray_aug")
 
 def preprocess(ds, training=False, as_rgb=False, cache_path=None):
-    # Normaliza SOLO para grayscale/CNN
     if not as_rgb:
         ds = ds.map(lambda x, y: (normalization(x), y), num_parallel_calls=AUTOTUNE)
-
-    # Convierte a RGB para EfficientNet
-    if as_rgb:
-        ds = ds.map(lambda x, y: (tf.image.grayscale_to_rgb(x), y),
-                    num_parallel_calls=AUTOTUNE)
-
+    else:
+        ds = ds.map(lambda x, y: (tf.image.grayscale_to_rgb(x), y), num_parallel_calls=AUTOTUNE)
+    ds = ds.cache(cache_path) if cache_path else ds.cache()
     if training:
-        ds = ds.map(lambda x, y: (aug(x, training=True), y),
-                    num_parallel_calls=AUTOTUNE)
         ds = ds.shuffle(1000, seed=SEED)
-
-    ds = ds.cache() if cache_path is None else ds.cache(cache_path)
+        ds = ds.map(lambda x, y: (aug(x, training=True), y), num_parallel_calls=AUTOTUNE)
     return ds.prefetch(AUTOTUNE)
 
 # Salidas de pipeline
