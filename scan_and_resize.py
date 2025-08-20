@@ -1,7 +1,7 @@
-
 """
-Escaneo de calidad (oscura/blanca/varianza/tamaño) y reescalado con letterbox
-de las imágenes del dataset original hacia ./chest_xray_resized (224x224).
+Escaneo de calidad (oscura/blanca/varianza/tamaño) y reescalado con
+center-crop + resize (sin bandas negras) de las imágenes del dataset
+original hacia ./chest_xray_resized (224x224).
 
 Basado en tu notebook y las mejoras acordadas.
 """
@@ -69,16 +69,32 @@ def count_flags(recs):
             c[tag] += 1
     return c
 
-def resize_letterbox(im, size=(224, 224)):
+def resize_crop(im, size=(224, 224)):
+    """
+    Resize directo con center-crop.
+    - Ajusta la imagen al aspect ratio del target recortando bordes.
+    - Sin bandas negras.
+    """
     im = im.convert("L")
     w, h = im.size
-    scale = min(size[0]/w, size[1]/h)
-    nw, nh = max(1, int(w*scale)), max(1, int(h*scale))
-    im_res = im.resize((nw, nh), Image.Resampling.BICUBIC)
-    canvas = Image.new("L", size, color=0)
-    off_x, off_y = (size[0]-nw)//2, (size[1]-nh)//2
-    canvas.paste(im_res, (off_x, off_y))
-    return canvas
+    target_w, target_h = size
+    aspect = w / h
+    target_aspect = target_w / target_h
+
+    # recorte para igualar aspect ratio
+    if aspect > target_aspect:
+        # imagen más ancha que el target -> recortar ancho
+        new_w = int(h * target_aspect)
+        offset = (w - new_w) // 2
+        im = im.crop((offset, 0, offset + new_w, h))
+    else:
+        # imagen más alta que el target -> recortar alto
+        new_h = int(w / target_aspect)
+        offset = (h - new_h) // 2
+        im = im.crop((0, offset, w, offset + new_h))
+
+    im_res = im.resize(size, Image.Resampling.BICUBIC)
+    return im_res
 
 def process_split(split):
     src_split = os.path.join(DATASET_ORIGINAL, split)
@@ -96,7 +112,7 @@ def process_split(split):
             for p in glob.glob(os.path.join(src_cls, ext)):
                 try:
                     with Image.open(p) as im:
-                        out = resize_letterbox(im, TARGET)
+                        out = resize_crop(im, TARGET)
                         out.save(os.path.join(dst_cls, os.path.basename(p)))
                 except Exception as e:
                     print("Error:", p, "->", e)
@@ -110,7 +126,7 @@ def main():
         recs = scan_and_flag(os.path.join(DATASET_ORIGINAL, split))
         print(f"{split.upper()} flags:", count_flags(recs))
 
-    print("\n== Redimensionando a letterbox 224x224 ==")
+    print("\n== Redimensionando con center-crop 224x224 ==")
     for split in ["train", "val", "test"]:
         print("Procesando", split)
         process_split(split)

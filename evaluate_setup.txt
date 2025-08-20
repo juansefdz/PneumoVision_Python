@@ -1,0 +1,13 @@
+Evaluación con umbral fijo 0.5 (ambos modelos): python evaluate.py --model both --mode fixed
+
+
+
+Elegir umbral por F1 en validación y evaluar en test (EffNet): python evaluate.py --model effnet --mode f1
+
+Forzar recall ≥ 0.90 en validación y evaluar en test (CNN): python evaluate.py --model cnn --mode recall --target_recall 0.90
+
+
+
+
+CNN--> python evaluate.py --model cnn --mode f1 --cam_imgs imagenes_analisis/pneumoprueba.jpeg --save_cam resultados
+EFFNET--> python evaluate.py --model effnet --mode f1 --cam_imgs imagenes_analisis/pneumoprueba.jpeg --save_cam resultados

@@ -31,4 +31,4 @@ if __name__ == "__main__":
         )
     maybe_resize()
     train_all()
-    print("\n✅ Pipeline completo finalizado.")
+    print("\nPipeline completo finalizado.")

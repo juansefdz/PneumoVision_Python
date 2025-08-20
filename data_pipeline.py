@@ -2,7 +2,7 @@
 import os
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers
+from keras import layers
 
 from config import (
     IMG_SIZE, BATCH_SIZE, SEED,

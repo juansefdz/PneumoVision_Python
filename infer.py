@@ -51,12 +51,12 @@ def main():
         base = None
         last_conv = None
 
-    print(f"✔ Modelo cargado: {model_name} — {args.model}")
+    print(f"Modelo cargado: {model_name} — {args.model}")
 
     # Inferencia por cada imagen
     for img_path in args.imgs:
         if not os.path.isfile(img_path):
-            print(f"⚠️  No existe: {img_path}")
+            print(f"No existe: {img_path}")
             continue
 
         try:
@@ -75,7 +75,7 @@ def main():
                 )
 
         except Exception as e:
-            print(f"❌ Error procesando {img_path}: {e}")
+            print(f"Error procesando {img_path}: {e}")
 
 if __name__ == "__main__":
     main()

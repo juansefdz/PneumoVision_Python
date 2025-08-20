@@ -50,8 +50,8 @@ def main():
     evaluate_on_test(best_eff, test_ds_rgb, threshold=0.5, name="EffNetB0 (best)")
 
     # Plots
-    plot_history(hist1, "EffNetB0 – Fase 1 (congelada)")
-    plot_history(hist2, "EffNetB0 – Fase 2 (fine-tuning)")
+    plot_history(hist1, "EffNetB0 - Fase 1 (congelada)")
+    plot_history(hist2, "EffNetB0 - Fase 2 (fine-tuning)")
 
     # Guardar copia final en artifacts
     best_eff.save(f"{ARTIFACTS_DIR}/pneumonia_effnet.keras")

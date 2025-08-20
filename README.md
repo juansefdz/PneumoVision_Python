@@ -117,3 +117,6 @@ Para reproducibilidad se fijan semillas y (opcional) determinismo en GPU.
 - Si ya tienes los modelos entrenados y solo quieres evaluar o probar con nuevas imágenes:
 
 `python evaluate.py`
+
+- Ejecuta el backend
+`uvicorn backend.app:app --reload`

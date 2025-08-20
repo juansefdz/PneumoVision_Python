@@ -1,0 +1,9 @@
+{
+  "input_image": "pneumoprueba.jpeg",
+  "model_name": "PneumoniaCNN_Grayscale_v2",
+  "diagnosis": "NO NEUMONÍA",
+  "probability": "56.2%",
+  "threshold": "88.3%",
+  "generated_at": "2025-08-20T15:36:37.108927Z",
+  "result_image": "pneumoprueba_overlay.png"
+}

@@ -4,14 +4,8 @@ import os
 IMG_SIZE = 224
 BATCH_SIZE = 32
 SEED = 42
+SPLIT = 0.15
 
-# Rutas
-# 1) Ruta al dataset original de Kaggle (si lo tienes descargado)
-#    Estructura esperada:
-#    chest_xray/
-#      ├─ train/{NORMAL,PNEUMONIA}
-#      ├─ val/{NORMAL,PNEUMONIA}
-#      └─ test/{NORMAL,PNEUMONIA}
 DATASET_ORIGINAL = os.path.abspath("./chest_xray")
 
 # 2) Ruta de salida para imágenes reescaladas con letterbox
