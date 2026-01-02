@@ -1,122 +1,128 @@
-# PneumoVision – Python
+# PneumoVision – Python 🫁
 
-Clasificación de radiografías de tórax (NORMAL vs. PNEUMONIA) usando CNN personalizada y EfficientNetB0 preentrenada, con visualización mediante Grad-CAM.
+Sistema avanzado para la clasificación de radiografías de tórax (NORMAL vs. PNEUMONIA) utilizando arquitecturas de Deep Learning modernas y técnicas de visión artificial.
 
-### ⚙️ Requisitos
+## 🚀 Características Principales
 
-- Python 3.9+ (se recomienda usar entorno virtual).
+### 🧠 Modelos Híbridos
 
-#### Instalar dependencias:
+El proyecto implementa dos enfoques de modelado distintos:
 
-`pip install -r requirements.txt`
+1.  **PneumoResNet_SE (Custom)**:
 
-###  Estructura esperada del dataset📂
+    - Arquitectura diseñada desde cero para eficiencia.
+    - Usa **Convoluciones Separables** y **Bloques Residuales**.
+    - Integra módulos **Squeeze-and-Excitation (SE)** para atención de canales.
+    - Entrada: Escala de grises (Grayscale) normalizada.
 
-Debes colocar el dataset en la carpeta ./chest_xray/ con esta estructura:
+2.  **EfficientNetB0 (Transfer Learning)**:
+    - Modelo preentrenado en ImageNet.
+    - Estrategia de entrenamiento en dos fases: **Feature Extraction** (congelado) + **Fine-Tuning** (descongelado parcial de últimas capas).
+    - Entrada: RGB con preprocesamiento nativo de EfficientNet.
 
-    chest_xray/
-    ├── train/
-    │   ├── NORMAL/
-    │   └── PNEUMONIA/
-    ├── val/
-    │   ├── NORMAL/
-    │   └── PNEUMONIA/
-    └── test/
-        ├── NORMAL/
-        └── PNEUMONIA/
+### 🛠 Pipeline de Datos Robusto (`data_pipeline.py`)
 
+- **Aumentación Dinámica**: Aplica rotaciones, zoom, traslaciones, contraste y brillo aleatorio solo durante el entrenamiento para mejorar la generalización.
+- **Balanceo Automático**: Calcula `class_weights` inversos para manejar el desbalance de clases en el dataset.
+- **Eficiencia**: Uso de `tf.data.AUTOTUNE`, caché y prefetch para maximizar el uso de GPU.
 
-> Si usas el dataset de Kaggle "Chest X-Ray Images (Pneumonia)", la estructura ya coincide.⚠️ Si usas el dataset de Kaggle "Chest X-Ray Images (Pneumonia)", la estructura ya coincide.
+### ⚙️ Entrenamiento Avanzado (`trainer.py`)
 
-### ▶️ Ejecución
+- **Optimizadores**: Soporte automático para **AdamW** (si está disponible) o Adam.
+- **Regularización**: Uso de **Label Smoothing** (0.1) para prevenir sobreconfianza en las predicciones.
+- **Callbacks**: Checkpointing del mejor modelo y monitorización constante.
 
-Crear y activar entorno virtual (opcional, pero recomendado):
+---
 
-`python -m venv .venv`
-# Windows
-`.venv\Scripts\activate`
-# macOS/Linux
-`source .venv/bin/activate`
+## 📋 Requisitos
 
+- Python 3.9+ (recomendado entorno virtual).
+- GPU recomendada para entrenamiento.
 
-## Instalar dependencias:
+### Instalación
 
-`pip install -r requirements.txt`
+```bash
+pip install -r requirements.txt
+```
 
+---
 
-### Ejecutar el pipeline completo:
+## 📂 Estructura del Dataset
 
-`python main.py`
+El sistema espera que los datos estén en la carpeta `chest_xray_resized/` (definido en `config.py`), o puedes usar el script de escaneo para generarla desde el original. Estructura esperada:
 
-### 🔄 Qué hace main.py
+```
+chest_xray_resized/
+├── train/
+│   ├── NORMAL/
+│   └── PNEUMONIA/
+├── val/
+│   ├── NORMAL/
+│   └── PNEUMONIA/
+└── test/
+    ├── NORMAL/
+    └── PNEUMONIA/
+```
 
-- Escaneo y preprocesamiento:
+> **Nota**: Puedes ajustar las rutas y parámetros como `IMG_SIZE` o `BATCH_SIZE` directamente en `config.py`.
 
-- Filtra imágenes problemáticas (muy oscuras, blancas, pequeñas).
+---
 
-- Redimensiona todas las imágenes con letterbox a 224×224, guardándolas en ./chest_xray_resized/.
+## 🏃‍♂️ Ejecución
 
-- Entrenamiento de modelos:
+El flujo de trabajo se ha unificado en scripts modulares.
 
-- 🧩 CNN personalizada (grayscale + normalización propia).
+### 1. Entrenamiento (`train.py`)
 
-🧠-  EfficientNetB0 (preentrenada en ImageNet, convertida a RGB, entrenada en dos fases: congelada + fine-tuning).
+Usa el script de entrenamiento indicando qué modelo deseas entrenar:
 
-### Evaluación:
+**Opción A: Modelo Personalizado (PneumoResNet_SE)**
 
-- Calcula métricas: Accuracy, AUC, PR-AUC, Precision, Recall.
+```bash
+python train.py --model custom
+```
 
-- Genera matriz de confusión y reportes de clasificación.
+_Mejor para:_ Entrenamiento rápido, inferencia ligera.
 
-- Guarda los mejores modelos en ./artifacts/.
+**Opción B: EfficientNetB0**
 
-### 📊 Resultados esperados
+```bash
+python train.py --model effnet
+```
 
-- cnn_best.keras → mejor CNN en escala de grises.
+_Mejor para:_ Máxima precisión utilizando conocimiento previo de ImageNet.
 
-- eff_b0_best.keras y pneumonia_effnet.keras → mejores checkpoints de EfficientNetB0.
+### 2. Evaluación
 
-- Gráficas de historia de entrenamiento y métricas impresas en consola.
+Para evaluar los modelos guardados en el set de prueba y generar métricas:
 
-###  Interpretabilidad (Grad-CAM)
-🔍 Interpretabilidad (Grad-CAM)
+```bash
+python evaluate.py
+```
 
-Incluye utilidades para generar mapas de calor Grad-CAM, que resaltan las zonas de la radiografía que influyeron en la decisión del modelo.
+### 3. Backend (API)
 
-Ejemplo de uso en un script de inferencia:
+Para servir el modelo y hacer predicciones vía API:
 
-    from utils import show_prediction_with_cam
-    import tensorflow as tf
+```bash
+uvicorn backend.app:app --reload
+```
 
-    model = tf.keras.models.load_model("./artifacts/pneumonia_effnet.keras", compile=False)
-    show_prediction_with_cam("ejemplo.jpg", model, model_name="EffNetB0")
+---
 
+## � Resultados y Métricas
 
-Esto genera:
+El sistema monitorea múltiples métricas durante el entrenamiento para asegurar un rendimiento balanceado:
 
-- Imagen original
+- **Accuracy**
+- **AUC (Area Under Curve)**
+- **Precision & Recall** (Crítico en diagnósticos médicos)
 
-- Heatmap Grad-CAM
+Los mejores modelos se guardan automáticamente en la carpeta `artifacts/`:
 
-- Overlay con predicción y probabilidad
+- `custom_best.keras`
+- `effnet_best.keras`
 
-### 📌 Notas
+## 🔍 Interpretabilidad
 
-**El entrenamiento puede ser intensivo → se recomienda usar GPU.**
-
-class_weight se calcula automáticamente para balancear el dataset.
-
-Para reproducibilidad se fijan semillas y (opcional) determinismo en GPU.
-
-### 🚀 Cómo usarlo
-
-- Si es primera vez → ejecuta:
-
-`python main.py`
-
-- Si ya tienes los modelos entrenados y solo quieres evaluar o probar con nuevas imágenes:
-
-`python evaluate.py`
-
-- Ejecuta el backend
-`uvicorn backend.app:app --reload`
+El proyecto incluye utilidades para **Grad-CAM**, permitiendo visualizar qué áreas de la radiografía activaron la decisión del modelo, proporcionando transparencia en el diagnóstico automatizado.

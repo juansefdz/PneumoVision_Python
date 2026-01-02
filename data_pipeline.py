@@ -1,77 +1,91 @@
-
-import os
+# data_manager.py
 import tensorflow as tf
 from tensorflow import keras
 from keras import layers
+import config
 
-from config import (
-    IMG_SIZE, BATCH_SIZE, SEED,
-    TRAIN_DIR_R, VAL_DIR_R, TEST_DIR_R
-)
-
-# --- Carga datasets (val oficial) ---
-common = dict(
-    label_mode="binary",
-    color_mode="grayscale",
-    image_size=(IMG_SIZE, IMG_SIZE),
-    batch_size=BATCH_SIZE,
-    class_names=["NORMAL", "PNEUMONIA"],
-)
-
-train_ds_raw = keras.preprocessing.image_dataset_from_directory(
-    TRAIN_DIR_R, shuffle=True, seed=SEED, **common
-)
-val_ds_raw = keras.preprocessing.image_dataset_from_directory(
-    VAL_DIR_R, shuffle=False, **common
-)
-test_ds_raw = keras.preprocessing.image_dataset_from_directory(
-    TEST_DIR_R, shuffle=False, **common
-)
-
-# --- Preprocess (sin flip H) ---
 AUTOTUNE = tf.data.AUTOTUNE
-normalization = layers.Rescaling(1./255)
 
-aug = keras.Sequential([
-    layers.RandomRotation(0.05),
-    layers.RandomZoom(0.10),
-    layers.RandomContrast(0.10),
-    layers.RandomTranslation(0.02, 0.02),
-], name="xray_aug")
+def get_augmenter():
+    """Genera el pipeline de aumentación de datos para entrenamiento."""
+    return keras.Sequential([
+        layers.RandomRotation(0.10),
+        layers.RandomZoom(0.15),
+        layers.RandomTranslation(0.05, 0.05),
+        layers.RandomContrast(0.2),
+        layers.RandomBrightness(0.2), # Clave para rayos X con diferente exposición
+    ], name="robust_aug")
 
-def preprocess(ds, training=False, as_rgb=False, cache_path=None):
-    if not as_rgb:
-        ds = ds.map(lambda x, y: (normalization(x), y), num_parallel_calls=AUTOTUNE)
-    else:
-        ds = ds.map(lambda x, y: (tf.image.grayscale_to_rgb(x), y), num_parallel_calls=AUTOTUNE)
-    ds = ds.cache(cache_path) if cache_path else ds.cache()
-    if training:
-        ds = ds.shuffle(1000, seed=SEED)
-        ds = ds.map(lambda x, y: (aug(x, training=True), y), num_parallel_calls=AUTOTUNE)
-    return ds.prefetch(AUTOTUNE)
+def load_datasets(model_type="custom"):
+    """
+    Carga y preprocesa los datasets.
+    
+    Args:
+        model_type (str): 'custom' (escala 1/255) o 'effnet' (preprocess nativo).
+    """
+    # 1. Cargar desde directorios
+    common_args = dict(
+        label_mode="binary",
+        color_mode="grayscale" if model_type == "custom" else "rgb",
+        image_size=(config.IMG_SIZE, config.IMG_SIZE),
+        batch_size=config.BATCH_SIZE,
+        shuffle=False # Se hace shuffle manual en train
+    )
 
-# Salidas de pipeline
-train_ds_prep = preprocess(train_ds_raw, training=True,  as_rgb=False)
-val_ds_prep   = preprocess(val_ds_raw,   training=False, as_rgb=False)
-test_ds_prep  = preprocess(test_ds_raw,  training=False, as_rgb=False)
+    train_ds = keras.preprocessing.image_dataset_from_directory(
+        config.TRAIN_DIR, shuffle=True, seed=config.SEED, **common_args
+    )
+    val_ds = keras.preprocessing.image_dataset_from_directory(
+        config.VAL_DIR, **common_args
+    )
+    test_ds = keras.preprocessing.image_dataset_from_directory(
+        config.TEST_DIR, **common_args
+    )
 
-train_ds_rgb = preprocess(train_ds_raw, training=True,  as_rgb=True)
-val_ds_rgb   = preprocess(val_ds_raw,   training=False, as_rgb=True)
-test_ds_rgb  = preprocess(test_ds_raw,  training=False, as_rgb=True)
-
-# Pesos de clase desde el dataset real
-def count_from_ds(ds):
+    # 2. Calcular pesos de clase (solo con train)
+    print("Calculando pesos de clase...")
     counts = {0: 0, 1: 0}
-    for _, y in ds.unbatch():
+    for _, y in train_ds.unbatch():
         counts[int(y.numpy())] += 1
-    return counts
+    
+    total = counts[0] + counts[1]
+    class_weight = {
+        0: total / (2.0 * counts[0]),
+        1: total / (2.0 * counts[1]),
+    }
+    print(f"Pesos calculados: {class_weight}")
 
-counts = count_from_ds(train_ds_raw)
-total = counts[0] + counts[1]
-class_weight = {
-    0: total / (2 * counts[0]),
-    1: total / (2 * counts[1]),
-}
+    # 3. Definir función de preprocesamiento
+    augmenter = get_augmenter()
+    normalization = layers.Rescaling(1./255)
 
-print("Class counts:", counts)
-print("Class weights:", class_weight)
+    def _preprocess(x, y, training=False):
+        # Aumentación solo en training
+        if training:
+            x = augmenter(x, training=True)
+        
+        # Normalización dependiente del modelo
+        if model_type == "effnet":
+            # EfficientNet espera 0-255 inputs si usamos los pesos por defecto de TF,
+            # pero su preprocess_input interno se encarga. 
+            # Si usamos 'imagenet', usamos la funcion de keras applications.
+            x = tf.keras.applications.efficientnet.preprocess_input(x)
+        else:
+            # Para nuestro modelo custom, normalizamos a [0, 1]
+            x = normalization(x)
+            
+        return x, y
+
+    # 4. Optimización (Map -> Cache -> Shuffle -> Prefetch)
+    # Train
+    train_ds = train_ds.map(lambda x, y: _preprocess(x, y, training=True), num_parallel_calls=AUTOTUNE)
+    train_ds = train_ds.cache().shuffle(1000).prefetch(AUTOTUNE)
+    
+    # Val / Test
+    val_ds = val_ds.map(lambda x, y: _preprocess(x, y, training=False), num_parallel_calls=AUTOTUNE)
+    val_ds = val_ds.cache().prefetch(AUTOTUNE)
+
+    test_ds = test_ds.map(lambda x, y: _preprocess(x, y, training=False), num_parallel_calls=AUTOTUNE)
+    test_ds = test_ds.cache().prefetch(AUTOTUNE)
+
+    return train_ds, val_ds, test_ds, class_weight
