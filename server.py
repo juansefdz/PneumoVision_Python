@@ -1,31 +1,29 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 from model_core import AIModelManager
 from utils import prepare_image
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
 
+ai_manager = AIModelManager()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-
+    print("Iniciando servidor y cargando modelos de IA...")
     ai_manager.load_models()
     yield
- 
-    print("Servidor apagándose")
-
-
-ai_manager = AIModelManager()
+    print("Servidor apagándose. Liberando recursos...")
 
 
 app = FastAPI(lifespan=lifespan)
 
-#
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,7 +31,7 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"status": "IA Trainer System Online", "framework": "FastAPI"}
+    return {"status": "IA Trainer System Online", "service": "PneumoVision API"}
 
 @app.post("/predict")
 async def predict_endpoint(
@@ -43,12 +41,11 @@ async def predict_endpoint(
     try:
     
         image_bytes = await file.read()
-        
-        
         img_array = prepare_image(image_bytes)
         
         response = {}
-     
+        
+       
         if mode == 'model_a':
             response['left'] = ai_manager.analyze('model_a', img_array)
             response['right'] = None
@@ -67,10 +64,11 @@ async def predict_endpoint(
         return response
 
     except Exception as e:
-        print(f"Error en endpoint: {e}")
+        print(f"Error crítico en endpoint: {e}")
+        
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
-
+    
     uvicorn.run(app, host="0.0.0.0", port=8000)
