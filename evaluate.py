@@ -1,8 +1,3 @@
-"""
-Carga los modelos ya entrenados desde ./artifacts y los evalúa en TEST.
-También calcula umbral óptimo en VALIDACIÓN (máx F1 o recall objetivo),
-y permite generar Grad-CAM para imágenes sueltas o una carpeta completa.
-"""
 
 import argparse
 import os
@@ -23,7 +18,7 @@ from utils import (
     show_prediction_with_cam,
 )
 
-# --- Recolector de imágenes para CAM ---
+
 def collect_images(cam_imgs, cam_dir):
     exts = ("*.jpg","*.jpeg","*.png","*.bmp","*.gif","*.tif","*.tiff")
     paths = set(cam_imgs or [])
@@ -36,7 +31,7 @@ def collect_images(cam_imgs, cam_dir):
         print("No se encontraron imágenes para CAM.")
     return paths
 
-# --- Evaluación CNN ---
+
 def eval_cnn(mode, target_recall, cam_list, img_size, save_dir=None):
     cnn_path = os.path.join(ARTIFACTS_DIR, "cnn_best.keras")
     if not os.path.exists(cnn_path):
@@ -47,7 +42,7 @@ def eval_cnn(mode, target_recall, cam_list, img_size, save_dir=None):
     compile_model(model, lr=1e-4)
     print("\n== Evaluando CNN ==")
 
-    # 1) Elegir / calcular umbral
+
     thr = 0.5
     if mode == "fixed":
         evaluate_on_test(model, test_ds_prep, threshold=thr, name="CNN (thr=0.5)")
@@ -59,11 +54,10 @@ def eval_cnn(mode, target_recall, cam_list, img_size, save_dir=None):
             target_recall=target_recall, name="CNN"
         )
 
-    # 2) PR-curve validación (opcional)
     yv, pv = get_probs_from_ds(model, val_ds_prep)
     plot_pr_curve(yv, pv, title="CNN – PR (validación)")
 
-    # 3) Grad-CAM con el umbral elegido
+
     if cam_list:
         for p in cam_list:
             try:
@@ -76,7 +70,7 @@ def eval_cnn(mode, target_recall, cam_list, img_size, save_dir=None):
             except Exception as e:
                 print(f"Grad-CAM CNN falló para {p}: {e}")
 
-# --- Evaluación EfficientNetB0 ---
+
 def eval_effnet(mode, target_recall, cam_list, img_size, save_dir=None):
     eff_path = os.path.join(ARTIFACTS_DIR, "eff_b0_best.keras")
     if not os.path.exists(eff_path):
@@ -85,9 +79,9 @@ def eval_effnet(mode, target_recall, cam_list, img_size, save_dir=None):
 
     model = tf.keras.models.load_model(eff_path, compile=False)
     compile_eff(model, lr=1e-4)
-    print("\n== Evaluando EfficientNetB0 ==")
+    print("\n=Evaluando EfficientNetB0")
 
-    # 1) Elegir / calcular umbral
+
     thr = 0.5
     if mode == "fixed":
         evaluate_on_test(model, test_ds_rgb, threshold=thr, name="EffNetB0 (thr=0.5)")
@@ -98,12 +92,10 @@ def eval_effnet(mode, target_recall, cam_list, img_size, save_dir=None):
             model, val_ds_rgb, test_ds_rgb, mode="recall",
             target_recall=target_recall, name="EffNetB0"
         )
-
-    # 2) PR-curve validación (opcional)
     yv, pv = get_probs_from_ds(model, val_ds_rgb)
     plot_pr_curve(yv, pv, title="EffNetB0 – PR (validación)")
 
-    # 3) Grad-CAM con el umbral elegido
+
     if cam_list:
         base = None
         try:
@@ -142,7 +134,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # preparar lista de imágenes y carpeta de salida
+  
     cam_list = collect_images(args.cam_imgs, args.cam_dir)
     out_dir = args.save_cam or "resultados"
     os.makedirs(out_dir, exist_ok=True)

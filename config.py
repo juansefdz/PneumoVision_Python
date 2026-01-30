@@ -12,9 +12,7 @@ DATASET_BASE = os.path.join(BASE_DIR, "chest_xray_resized")
 
 TRAIN_DIR = os.path.join(DATASET_BASE, "train")
 
-# --- CAMBIO CRITICO PARA PLAN B ---
-# La carpeta "val" original solo tiene 16 fotos, lo que causa métricas locas.
-# Usamos "test" (624 fotos) para validar mientras entrenamos.
+
 VAL_DIR = os.path.join(DATASET_BASE, "test") 
 TEST_DIR = os.path.join(DATASET_BASE, "test")
 
@@ -26,7 +24,6 @@ os.makedirs(ARTIFACTS_DIR, exist_ok=True)
 NUM_CLASSES = 1  # Binario
 DROPOUT_RATE = 0.4
 
-# --- CAMBIO CRITICO PARA PLAN B ---
-# Bajamos el LR de 1e-3 a 1e-4 para un aprendizaje más suave y estable
+
 LEARNING_RATE = 1e-4 
 WEIGHT_DECAY = 1e-4

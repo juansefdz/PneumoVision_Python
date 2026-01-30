@@ -1,13 +1,4 @@
-"""
-Inferencia rápida con modelos entrenados (CNN o EfficientNetB0).
-- Carga un .keras desde ./artifacts (o ruta que indiques).
-- Predice 1+ imágenes.
-- (Opcional) Genera Grad-CAM y guarda overlays.
 
-Uso:
-python infer.py --model artifacts/pneumonia_effnet.keras --imgs path\img1.jpg path\img2.png --cam --outdir outputs
-python infer.py --model artifacts/cnn_best.keras --imgs chest_xray/test/PNEUMONIA/person1.jpeg --cam
-"""
 
 import os
 import argparse
@@ -26,7 +17,7 @@ def parse_args():
     return ap.parse_args()
 
 def is_effnet(model):
-    # Heurística: EfficientNet suele incluir submodelo llamado "efficientnetb0"
+ 
     try:
         model.get_layer("efficientnetb0")
         return True
@@ -37,7 +28,6 @@ def main():
     args = parse_args()
     os.makedirs(args.outdir, exist_ok=True)
 
-    # Cargar modelo sin compilar y luego compilar con métricas (para consistencia)
     model = tf.keras.models.load_model(args.model, compile=False)
 
     if is_effnet(model):
@@ -53,7 +43,7 @@ def main():
 
     print(f"Modelo cargado: {model_name} — {args.model}")
 
-    # Inferencia por cada imagen
+
     for img_path in args.imgs:
         if not os.path.isfile(img_path):
             print(f"No existe: {img_path}")
@@ -64,7 +54,7 @@ def main():
             print(f"[{model_name}] {os.path.basename(img_path)} → {label}  (Prob PNEUMONIA={prob*100:.2f}%, thr={args.thr})")
 
             if args.cam:
-                # Carpeta por imagen
+               
                 img_stem = os.path.splitext(os.path.basename(img_path))[0]
                 save_dir = os.path.join(args.outdir, f"{img_stem}_{model_name}")
                 show_prediction_with_cam(

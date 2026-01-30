@@ -1,4 +1,4 @@
-# preprocess.py
+
 import os
 import shutil
 import cv2
@@ -6,16 +6,12 @@ import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 import config
-
-# Importamos kagglehub para la descarga automática
 import kagglehub
 
 def download_dataset_if_needed(target_dir):
-    """
-    Descarga el dataset usando KaggleHub si no existe localmente.
-    """
+    
     if os.path.exists(target_dir) and os.path.isdir(target_dir):
-        # Verificación rápida: si tiene subcarpetas 'train', asumimos que está bien
+       
         if os.path.exists(os.path.join(target_dir, "train")):
             return
 
@@ -23,12 +19,10 @@ def download_dataset_if_needed(target_dir):
     print("(Esto puede tardar unos minutos dependiendo de tu conexión)")
     
     try:
-        # Descarga el dataset oficial compatible con este proyecto
+      
         path = kagglehub.dataset_download("paultimothymooney/chest-xray-pneumonia")
         print(f"Descarga completada en caché: {path}")
-        
-        # El dataset suele venir anidado como: .../cache/chest_xray/chest_xray/...
-        # Buscamos dónde está la carpeta 'train' real
+     
         source_data_dir = None
         for root, dirs, files in os.walk(path):
             if "train" in dirs and "test" in dirs:
@@ -40,7 +34,7 @@ def download_dataset_if_needed(target_dir):
 
         print(f"Moviendo archivos desde {source_data_dir} a {target_dir}...")
         
-        # Mover (o copiar) los contenidos a nuestra carpeta de proyecto
+     
         shutil.copytree(source_data_dir, target_dir, dirs_exist_ok=True)
         print("Dataset colocado correctamente en el proyecto.")
 
@@ -50,7 +44,7 @@ def download_dataset_if_needed(target_dir):
         raise e
 
 def resize_letterbox(img, size=(224, 224), color=(0, 0, 0)):
-    """Redimensiona manteniendo aspect ratio (Letterbox)."""
+   
     h, w = img.shape[:2]
     target_h, target_w = size
     
@@ -68,7 +62,7 @@ def resize_letterbox(img, size=(224, 224), color=(0, 0, 0)):
     return canvas
 
 def process_file(args):
-    """Procesa un solo archivo."""
+    
     src_path, dst_path, size = args
     if os.path.exists(dst_path):
         return
@@ -84,11 +78,11 @@ def process_file(args):
         print(f"Error procesando {src_path}: {e}")
 
 def prepare_dataset():
-    """Flujo principal: Descarga (si hace falta) -> Procesa."""
+   
     raw_dir = os.path.join(config.BASE_DIR, "chest_xray")
     processed_dir = config.DATASET_BASE 
     
-    # 1. PASO NUEVO: Descarga automática
+   
     download_dataset_if_needed(raw_dir)
 
     print(f"Verificando/Procesando imágenes en: {processed_dir}")
