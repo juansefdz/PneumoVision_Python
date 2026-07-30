@@ -3,7 +3,7 @@ os.environ["TF_USE_LEGACY_KERAS"] = "0"
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from model_core import AIModelManager
 from utils import prepare_image
@@ -29,6 +29,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.api_route("/favicon.ico", methods=["GET", "HEAD"])
+def favicon():
+    return Response(status_code=204)
 
 @app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
