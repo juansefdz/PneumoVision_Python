@@ -1,4 +1,7 @@
 import os
+os.environ["TF_USE_LEGACY_KERAS"] = "0"
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import tensorflow as tf
 import numpy as np
 from utils import encode_heatmap_to_base64
@@ -47,6 +50,12 @@ class AIModelManager:
                 print("Modelo B (Custom Keras) cargado.")
             except Exception as e:
                 print(f"Error cargando Modelo B Keras: {e}")
+                try:
+                    import keras
+                    self.models['model_b'] = keras.models.load_model(path_b_keras, compile=False)
+                    print("Modelo B cargado via Keras nativo.")
+                except Exception as e2:
+                    print(f"Error secundario cargando Modelo B: {e2}")
         elif os.path.exists(path_b_graph):
             try:
                 self.models['model_b'] = tf.saved_model.load(path_b_graph)
