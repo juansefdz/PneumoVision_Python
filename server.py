@@ -22,15 +22,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="PneumoVision API", version="1.0.0", lifespan=lifespan)
 
-# Orígenes CORS configurables por entorno o wildcard seguro
-raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
-allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=False if "*" in allowed_origins else True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
