@@ -73,12 +73,7 @@ def load_datasets(model_type="custom"):
     print(f"Pesos: Normal({cnt_normal}): {class_weight[0]:.2f}, Pneumonia({cnt_pneumo}): {class_weight[1]:.2f}")
 
 
-    augmenter = get_augmenter()
     normalization = layers.Rescaling(1./255)
-
-    def apply_augmentation(x, y):
-   
-        return augmenter(x, training=True), y
 
     def apply_normalization(x, y):
         if model_type == "effnet":
@@ -86,14 +81,11 @@ def load_datasets(model_type="custom"):
         else:
             return normalization(x), y
 
-    
     train_ds = train_ds.cache()
     train_ds = train_ds.shuffle(1000)
-    train_ds = train_ds.map(apply_augmentation, num_parallel_calls=AUTOTUNE)
     train_ds = train_ds.map(apply_normalization, num_parallel_calls=AUTOTUNE)
     train_ds = train_ds.prefetch(AUTOTUNE)
     
- 
     val_ds = val_ds.cache().map(apply_normalization, num_parallel_calls=AUTOTUNE).prefetch(AUTOTUNE)
     test_ds = test_ds.cache().map(apply_normalization, num_parallel_calls=AUTOTUNE).prefetch(AUTOTUNE)
 

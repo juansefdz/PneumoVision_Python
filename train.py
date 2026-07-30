@@ -1,5 +1,16 @@
+import os
+import sys
 import argparse
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
+os.environ["KERAS_BACKEND"] = "torch"
+
+import torch
+import keras
 import tensorflow as tf
+
 try:
     import tensorflow_addons as tfa
     HAS_ADAMW = True
@@ -10,6 +21,17 @@ import config
 from data_manager import load_datasets
 from models import build_resnet_se, build_efficientnet
 from utils import get_callbacks, plot_history, evaluate_on_test
+
+# === Estado y Verificación de GPU ===
+def setup_gpu():
+    if torch.cuda.is_available():
+        gpu_name = torch.cuda.get_device_name(0)
+        print(f"[GPU] CUDA Device Detected: {gpu_name}")
+        print("[GPU] Keras running on PyTorch CUDA Backend.")
+    else:
+        print("[CPU] Running training on CPU...")
+
+setup_gpu()
 
 def get_optimizer(lr, wd):
     if HAS_ADAMW:

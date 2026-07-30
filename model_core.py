@@ -12,15 +12,18 @@ class AIModelManager:
 
     def load_models(self):
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        path_a = os.path.join(base_dir, 'artifacts', 'eff_b0_best.keras')
-        path_b = os.path.join(base_dir, 'artifacts', 'custom_graph') 
+        path_a = os.path.join(base_dir, 'artifacts', 'effnet_best.keras')
+        if not os.path.exists(path_a):
+            path_a = os.path.join(base_dir, 'artifacts', 'eff_b0_best.keras')
+            
+        path_b_graph = os.path.join(base_dir, 'artifacts', 'custom_graph') 
+        path_b_keras = os.path.join(base_dir, 'artifacts', 'custom_best.keras')
     
         if os.path.exists(path_a):
             try:
                 self.models['model_a'] = tf.keras.models.load_model(path_a, compile=False)
                 print("(EfficientNet) cargado.")
                 
-             
                 layer_found = False
                 for layer in self.models['model_a'].layers:
                     if layer.name == 'top_activation':
@@ -28,7 +31,6 @@ class AIModelManager:
                         break
                 
                 if not layer_found:
-                
                     print("top_activation no encontrado. Buscando capa alternativa...")
                     for layer in reversed(self.models['model_a'].layers):
                         if 'conv' in layer.name or 'activation' in layer.name:
@@ -36,15 +38,21 @@ class AIModelManager:
                             print(f"capa GradCAM detectada: {layer.name}")
                             break
             except Exception as e:
-                print(f"Error A: {e}")
+                print(f"Error cargando Modelo A: {e}")
 
         # 2. Modelo B: Custom 
-        if os.path.exists(path_b):
+        if os.path.exists(path_b_keras):
             try:
-                self.models['model_b'] = tf.saved_model.load(path_b)
-                print("Modelo B (Custom) cargado.")
+                self.models['model_b'] = tf.keras.models.load_model(path_b_keras, compile=False)
+                print("Modelo B (Custom Keras) cargado.")
             except Exception as e:
-                print(f"Error cargando Modelo B: {e}")
+                print(f"Error cargando Modelo B Keras: {e}")
+        elif os.path.exists(path_b_graph):
+            try:
+                self.models['model_b'] = tf.saved_model.load(path_b_graph)
+                print("Modelo B (Custom SavedModel) cargado.")
+            except Exception as e:
+                print(f"Error cargando Modelo B SavedModel: {e}")
 
     def make_gradcam_heatmap(self, model, img_array, last_conv_layer_name):
         try:
@@ -56,19 +64,34 @@ class AIModelManager:
             print(f"Error creando modelo GradCAM: {e}")
             return np.zeros((224, 224))
 
+        img_tensor = tf.cast(img_array, tf.float32)
+
         with tf.GradientTape() as tape:
-            last_conv_layer_output, preds = grad_model(img_array)
-            pred_index = tf.argmax(preds[0])
-            class_channel = preds[:, pred_index]
+            tape.watch(img_tensor)
+            last_conv_layer_output, preds = grad_model(img_tensor)
+            if preds.shape[-1] == 1:
+                class_channel = preds[:, 0]
+            else:
+                pred_index = tf.argmax(preds[0])
+                class_channel = preds[:, pred_index]
 
         grads = tape.gradient(class_channel, last_conv_layer_output)
+        if grads is None:
+            return np.zeros((224, 224))
+            
         pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
         
         last_conv_layer_output = last_conv_layer_output[0]
         heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
         heatmap = tf.squeeze(heatmap)
 
-        heatmap = tf.maximum(heatmap, 0) / (tf.math.reduce_max(heatmap) + 1e-10)
+        heatmap = tf.maximum(heatmap, 0)
+        max_val = tf.math.reduce_max(heatmap)
+        if max_val > 0:
+            heatmap = heatmap / max_val
+        else:
+            heatmap = tf.zeros_like(heatmap)
+
         return heatmap.numpy()
 
     def analyze(self, model_key, img_array):
@@ -79,22 +102,31 @@ class AIModelManager:
         heatmap_b64 = None
         
         try:
-          
+            input_tensor = tf.cast(img_array, tf.float32)
+            
+            # Normalización y conversión de color según modelo
             if hasattr(model, 'serve'): 
-                input_tensor = img_array
-                if img_array.shape[-1] == 3:
-                    input_tensor = tf.image.rgb_to_grayscale(img_array)
+                if input_tensor.shape[-1] == 3:
+                    input_tensor = tf.image.rgb_to_grayscale(input_tensor)
+                if tf.reduce_max(input_tensor) > 1.0:
+                    input_tensor = input_tensor / 255.0
                 
                 raw_pred = model.serve(input_tensor)
                 preds = raw_pred.numpy()
             else: 
-                preds = model.predict(img_array)
+                # Si el modelo espera 1 canal (Custom ResNet) o si es model_b
+                if model_key == 'model_b' or (hasattr(model, 'input_shape') and model.input_shape[-1] == 1):
+                    if input_tensor.shape[-1] == 3:
+                        input_tensor = tf.image.rgb_to_grayscale(input_tensor)
+                    if tf.reduce_max(input_tensor) > 1.0:
+                        input_tensor = input_tensor / 255.0
                 
-              
+                preds = model.predict(input_tensor, verbose=0)
+                
                 try:
                     layer = self.layer_names.get(model_key)
                     if layer:
-                        heatmap = self.make_gradcam_heatmap(model, img_array, layer)
+                        heatmap = self.make_gradcam_heatmap(model, input_tensor, layer)
                         if np.max(heatmap) > 0: 
                             heatmap_b64 = encode_heatmap_to_base64(heatmap)
                 except Exception as e:

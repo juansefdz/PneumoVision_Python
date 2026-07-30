@@ -13,7 +13,7 @@ DATASET_BASE = os.path.join(BASE_DIR, "chest_xray_resized")
 TRAIN_DIR = os.path.join(DATASET_BASE, "train")
 
 
-VAL_DIR = os.path.join(DATASET_BASE, "test") 
+VAL_DIR = os.path.join(DATASET_BASE, "val") 
 TEST_DIR = os.path.join(DATASET_BASE, "test")
 
 # === Rutas de Artefactos ===
